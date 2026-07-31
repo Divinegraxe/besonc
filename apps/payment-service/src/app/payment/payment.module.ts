@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
+import { PrismaModule } from '@besonc/shared-db';
 import { PaymentController } from './payment.controller';
 import { PaymentService } from './payment.service';
 import { LedgerService } from './ledger.service';
 
 @Module({
+  imports: [PrismaModule],
   controllers: [PaymentController],
   providers: [PaymentService, LedgerService],
   exports: [PaymentService, LedgerService],

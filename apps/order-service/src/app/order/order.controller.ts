@@ -1,8 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
-import { IsArray, IsEnum, IsIn, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { Body, Controller, Get, Param, Patch, Post, Query, BadRequestException, NotFoundException } from '@nestjs/common';
+import { IsArray, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OrderService, OrderItem, AddressSnapshot } from './order.service';
 import { OrderState, ServiceCode } from '@besonc/shared-types';
+
+class CoordinatesDto {
+  @IsNumber() lat!: number;
+  @IsNumber() lng!: number;
+}
 
 class OrderItemDto implements OrderItem {
   @IsString() itemId!: string;
@@ -21,8 +26,7 @@ class AddressDto implements AddressSnapshot {
   @IsOptional() @IsString() landmark?: string;
   @IsOptional() @IsString() deliveryInstructions?: string;
   @IsOptional() @IsString() recipientName?: string;
-  // coordinates handled loosely
-  coordinates!: { lat: number; lng: number };
+  @IsObject() @ValidateNested() @Type(() => CoordinatesDto) coordinates!: { lat: number; lng: number };
 }
 
 class CreateOrderDto {
@@ -45,6 +49,7 @@ class TransitionDto {
   @IsString() newState!: OrderState;
   @IsOptional() @IsString() riderId?: string;
   @IsOptional() @IsString() paymentStatus?: 'paid' | 'failed' | 'refunded';
+  @IsOptional() @IsString() actor?: string;
 }
 
 @Controller()
@@ -52,49 +57,53 @@ export class OrderController {
   constructor(private readonly orders: OrderService) {}
 
   @Post()
-  create(@Body() dto: CreateOrderDto) {
-    const order = this.orders.create(dto as any);
+  async create(@Body() dto: CreateOrderDto) {
+    const order = await this.orders.create(dto as any);
     return { success: true, data: order };
   }
 
   @Get(':id')
-  getById(@Param('id') id: string) {
-    const order = this.orders.getById(id);
-    if (!order) return { success: false, error: { code: 'NOT_FOUND', message: 'Order not found' } };
+  async getById(@Param('id') id: string) {
+    const order = await this.orders.getById(id);
+    if (!order) throw new NotFoundException('Order not found');
     return { success: true, data: order };
   }
 
   @Get('by-customer/:customerId')
-  byCustomer(@Param('customerId') customerId: string, @Query('limit') limit?: string) {
-    return { success: true, data: this.orders.listByCustomer(customerId, limit ? Number(limit) : 20) };
+  async byCustomer(@Param('customerId') customerId: string, @Query('limit') limit?: string) {
+    return { success: true, data: await this.orders.listByCustomer(customerId, limit ? Number(limit) : 20) };
   }
 
   @Get('by-vendor/:vendorId')
-  byVendor(@Param('vendorId') vendorId: string, @Query('limit') limit?: string) {
-    return { success: true, data: this.orders.listByVendor(vendorId, limit ? Number(limit) : 50) };
+  async byVendor(@Param('vendorId') vendorId: string, @Query('limit') limit?: string) {
+    return { success: true, data: await this.orders.listByVendor(vendorId, limit ? Number(limit) : 50) };
   }
 
   @Get('by-rider/:riderId')
-  byRider(@Param('riderId') riderId: string, @Query('limit') limit?: string) {
-    return { success: true, data: this.orders.listByRider(riderId, limit ? Number(limit) : 50) };
+  async byRider(@Param('riderId') riderId: string, @Query('limit') limit?: string) {
+    return { success: true, data: await this.orders.listByRider(riderId, limit ? Number(limit) : 50) };
   }
 
   @Get('available-for-rider')
-  availableForRider() {
-    return { success: true, data: this.orders.listAvailableForRider() };
+  async availableForRider() {
+    return { success: true, data: await this.orders.listAvailableForRider() };
   }
 
   @Patch(':id/transition')
-  transition(@Param('id') id: string, @Body() dto: TransitionDto) {
+  async transition(@Param('id') id: string, @Body() dto: TransitionDto) {
     try {
-      const order = this.orders.transition(id, dto.newState, {
+      const order = await this.orders.transition(id, dto.newState, {
         riderId: dto.riderId,
         paymentStatus: dto.paymentStatus,
+        actor: dto.actor,
       });
       return { success: true, data: order };
     } catch (err) {
+      if (err instanceof NotFoundException) throw err;
+      if (err instanceof BadRequestException) throw err;
+      // Wrap any other error with our standard shape
       const message = (err as Error).message;
-      return { success: false, error: { code: 'INVALID_TRANSITION', message } };
+      throw new BadRequestException(message);
     }
   }
 }

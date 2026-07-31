@@ -161,3 +161,228 @@ model Item {
   @@index([vendorId, category])
   @@map("item")
 }
+
+// ── Order (owned by order-service) ─────────────────────────────────
+
+model Order {
+  id                       String        @id  // YDO-CC-FO-YYYYMMDD-NNNN
+  customerId               String        // FK to user-service user (no cross-service FK, just a string)
+  riderId                  String?       // assigned at rider_assigned
+  service                  ServiceCode
+  stateMachine             String        @db.VarChar(1)  // A | B | C | D | E
+  state                    OrderState    @default(placed)
+  itemTotalPesewas         Int
+  deliveryFeePesewas       Int
+  serviceFeePesewas        Int
+  tipPesewas               Int           @default(0)
+  grandTotalPesewas        Int
+  paymentMethod            PaymentMethod
+  paymentStatus            PaymentStatus @default(pending)
+  paymentReference         String?       @db.VarChar(100)
+  estimatedPreparationMinutes Int        @default(25)
+  estimatedDeliveryAt       DateTime?
+  hasDispute               Boolean       @default(false)
+  customerNotes            String?
+  vendorNotes              String?
+
+  // Lifecycle timestamps
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+  placedAt                 DateTime?
+  vendorAcceptedAt         DateTime?
+  preparingAt              DateTime?
+  readyForPickupAt         DateTime?
+  riderAssignedAt          DateTime?
+  pickedUpAt               DateTime?
+  deliveredAt              DateTime?
+  cancelledAt              DateTime?
+
+  items                   OrderItem[]
+  deliveryAddress         OrderAddress  @relation("DeliveryAddress", fields: [deliveryAddressId], references: [id])
+  deliveryAddressId       String        @unique
+  pickupAddress           OrderAddress? @relation("PickupAddress", fields: [pickupAddressId], references: [id])
+  pickupAddressId         String?       @unique
+  stateTransitions        OrderStateTransition[]
+
+  @@index([customerId, createdAt])
+  @@index([state, createdAt])
+  @@index([riderId, state])
+  @@index([paymentStatus])
+  @@map("order")
+}
+
+model OrderItem {
+  id              String  @id @default(cuid())
+  orderId         String
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId          String  // FK to catalogue's item.id (no cross-service FK, just a string)
+  vendorId        String
+  name            String  @db.VarChar(200)
+  pricePesewas    Int
+  quantity        Int
+  variantId       String?
+  notes           String?
+  addonSelections Json?   // [{addonId, optionId, priceDelta}]
+
+  @@index([orderId])
+  @@index([vendorId])
+  @@map("order_item")
+}
+
+model OrderAddress {
+  id                  String  @id @default(cuid())
+  label               String  @db.VarChar(50)
+  areaName            String  @db.VarChar(100)
+  landmark            String? @db.VarChar(200)
+  contactPhone        String  @db.VarChar(20)
+  recipientName       String? @db.VarChar(100)
+  deliveryInstructions String?
+  latitude            Decimal @db.Decimal(10, 7)
+  longitude           Decimal @db.Decimal(10, 7)
+
+  deliveryForOrder    Order?  @relation("DeliveryAddress")
+  pickupForOrder      Order?  @relation("PickupAddress")
+
+  @@map("order_address")
+}
+
+model OrderStateTransition {
+  id          String     @id @default(cuid())
+  orderId     String
+  order       Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromState   OrderState
+  toState     OrderState
+  actor       String?    @db.VarChar(50)  // "customer", "vendor:<id>", "rider:<id>", "system"
+  meta        Json?      // riderId, paymentStatus, etc.
+  occurredAt  DateTime   @default(now())
+
+  @@index([orderId, occurredAt])
+  @@map("order_state_transition")
+}
+
+// ── Payments (owned by payment-service) ───────────────────────────
+
+enum PaymentDirection {
+  credit  // money coming in (customer paid us)
+  debit   // money going out (we paid vendor/rider)
+}
+
+enum LedgerReason {
+  order_payment
+  vendor_settlement
+  rider_earning
+  rider_payout
+  refund
+  adjustment
+  platform_commission
+  delivery_fee
+}
+
+model Payment {
+  id                  String        @id @default(cuid())
+  orderId             String
+  customerId          String
+  amountPesewas       Int
+  method              PaymentMethod
+  status              PaymentStatus
+  paystackReference   String?       @unique @db.VarChar(100)
+  paystackChargeId    String?       @db.VarChar(100)
+  mobileMoneyPhone    String?
+  mobileMoneyProvider String?       @db.VarChar(16)  // mtn, vod, atl
+  failureReason       String?
+  createdAt           DateTime      @default(now())
+  completedAt         DateTime?
+
+  ledgerEntries       LedgerEntry[]
+
+  @@index([orderId])
+  @@index([customerId, createdAt])
+  @@index([status])
+  @@map("payment")
+}
+
+model Payout {
+  id                   String        @id @default(cuid())
+  recipientId          String        // vendor:YDV-... or rider:YDR-...
+  recipientType        String        @db.VarChar(16)
+  amountPesewas        Int
+  paystackTransferCode String?       @db.VarChar(100)
+  status               PaymentStatus @default(pending)
+  reason               String        @db.VarChar(50)
+  relatedOrderId       String?
+  failureReason        String?
+  createdAt            DateTime      @default(now())
+  completedAt          DateTime?
+
+  ledgerEntries        LedgerEntry[]
+
+  @@index([recipientId, createdAt])
+  @@index([status, createdAt])
+  @@map("payout")
+}
+
+model LedgerEntry {
+  id            String           @id @default(cuid())
+  userId        String           // 'customer', 'vendor:YDV-...', 'rider:YDR-...', 'PLATFORM_HOLDING'
+  userType      String           @db.VarChar(16)
+  direction     PaymentDirection
+  deltaPesewas  Int              // signed: credit=+, debit=-
+  reason        LedgerReason
+  referenceType String?          @db.VarChar(16)   // 'order', 'payout', 'payment', etc
+  referenceId   String?
+  paystackRef   String?          @db.VarChar(100)
+  balanceAfter  Int              // running balance after this entry
+  description   String?          @db.VarChar(200)
+  createdAt     DateTime         @default(now())
+
+  paymentId     String?
+  payment       Payment?         @relation(fields: [paymentId], references: [id])
+
+  payoutId      String?
+  payout        Payout?          @relation(fields: [payoutId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+  @@map("ledger_entry")
+}
+
+model UserBalance {
+  id             String   @id @default(cuid())
+  userId         String   @unique  // 'customer', 'vendor:YDV-...', 'rider:YDR-...', 'PLATFORM_HOLDING'
+  userType       String   @db.VarChar(16)
+  balancePesewas Int      @default(0)
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  @@map("user_balance")
+}
+
+// ── Media (owned by media-service) ───────────────────────────────
+
+enum MediaContext {
+  avatar
+  vendor_logo
+  item_image
+  errand_proof
+  order_proof
+  general
+}
+
+model MediaAsset {
+  id            String       @id @default(cuid())
+  url           String       @db.VarChar(500)
+  thumbnailUrl  String?      @db.VarChar(500)
+  filename      String       @db.VarChar(200)
+  mimeType      String       @db.VarChar(80)
+  sizeBytes     Int
+  uploadedBy    String       // userId
+  context       MediaContext
+  storageKey    String?      @db.VarChar(500)  // R2 / S3 key, null in mock mode
+  storageBackend String       @default("mock") @db.VarChar(16)  // "mock" | "r2" | "s3"
+  createdAt     DateTime     @default(now())
+
+  @@index([uploadedBy, createdAt])
+  @@index([context])
+  @@map("media_asset")
+}

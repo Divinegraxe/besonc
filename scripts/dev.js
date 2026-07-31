@@ -3,9 +3,23 @@
 /**
  * BESONC local development runner.
  *
- * Runs services directly from TypeScript source via `tsx`, so we skip the
- * compile-then-link dance. Each service has its own tsconfig that uses
- * TypeScript path mappings to resolve @besonc/* libs.
+ * Why ts-node and NOT tsx: NestJS DI relies on TypeScript's
+ * `emitDecoratorMetadata` flag (constructor parameter type info is stored
+ * via Reflect.metadata so the IoC container can resolve the right
+ * provider). `tsx` is built on esbuild and does NOT emit decorator
+ * metadata, so controllers are constructed with `undefined` dependencies
+ * and you get cryptic 500s like "Cannot read properties of undefined
+ * (reading 'listByCategory')" even though NestJS logs the modules as
+ * initialized.
+ *
+ * Confirmed with a single-service test:
+ *   tsx   -> 500s on every route
+ *   ts-node --transpile-only -r tsconfig-paths/register -P <app>/tsconfig.json
+ *         -> constructor runs, services are injected, real data is returned
+ *
+ * Each service has its own tsconfig that uses TypeScript path mappings to
+ * resolve @besonc/* libs. `tsconfig-paths/register` reads those mappings
+ * at runtime so we don't have to compile before running.
  *
  * Sprint 1-4 services:
  *   - API Gateway      (port 3000)
@@ -23,37 +37,62 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const tsx = path.join(root, 'node_modules', '.bin', 'tsx');
-const TSX_TSCONFIG_PATH = path.join(root, 'tsconfig.json');
+const tsNode = path.join(root, 'node_modules', '.bin', 'ts-node');
 const nx = path.join(root, 'node_modules', '.bin', 'nx');
 
+// Helper: build a ts-node command for a given service. Each app has its
+// own tsconfig (so its own @besonc/* path mappings and decorator flags).
+const tsNodeCmd = (appDir, entry) => [
+  tsNode,
+  '--transpile-only',
+  '-r', 'tsconfig-paths/register',
+  '-P', path.join(root, 'apps', appDir, 'tsconfig.json'),
+  entry,
+];
+
 const services = [
-  { name: 'api-gateway',  cmd: tsx,  args: ['apps/api-gateway/src/main.ts'],         env: { PORT: '3000' } },
-  { name: 'auth-service', cmd: tsx,  args: ['apps/auth-service/src/main.ts'],        env: { PORT: '3001' } },
-  { name: 'user-service', cmd: tsx,  args: ['apps/user-service/src/main.ts'],        env: { PORT: '3002' } },
-  { name: 'catalogue',    cmd: tsx,  args: ['apps/catalogue-service/src/main.ts'],   env: { PORT: '3003' } },
-  { name: 'order',        cmd: tsx,  args: ['apps/order-service/src/main.ts'],       env: { PORT: '3004' } },
-  { name: 'payment',      cmd: tsx,  args: ['apps/payment-service/src/main.ts'],     env: { PORT: '3007' } },
-  { name: 'media',        cmd: tsx,  args: ['apps/media-service/src/main.ts'],       env: { PORT: '3010' } },
-  { name: 'pricing',      cmd: tsx,  args: ['apps/pricing-service/src/main.ts'],     env: { PORT: '3012' } },
-  { name: 'customer-bff', cmd: tsx,  args: ['apps/customer-bff/src/main.ts'],        env: { PORT: '4000' } },
-  { name: 'customer-web', cmd: nx,   args: ['start', 'customer-web'],                 env: { PORT: '4200' } },
+  { name: 'api-gateway',  args: tsNodeCmd('api-gateway',  'apps/api-gateway/src/main.ts'),         env: { PORT: '3000' } },
+  { name: 'auth-service', args: tsNodeCmd('auth-service', 'apps/auth-service/src/main.ts'),         env: { PORT: '3001' } },
+  { name: 'user-service', args: tsNodeCmd('user-service', 'apps/user-service/src/main.ts'),         env: { PORT: '3002' } },
+  { name: 'catalogue',    args: tsNodeCmd('catalogue-service', 'apps/catalogue-service/src/main.ts'), env: { PORT: '3003' } },
+  { name: 'order',        args: tsNodeCmd('order-service', 'apps/order-service/src/main.ts'),       env: { PORT: '3004' } },
+  { name: 'payment',      args: tsNodeCmd('payment-service', 'apps/payment-service/src/main.ts'),   env: { PORT: '3007' } },
+  { name: 'media',        args: tsNodeCmd('media-service', 'apps/media-service/src/main.ts'),       env: { PORT: '3010' } },
+  { name: 'pricing',      args: tsNodeCmd('pricing-service', 'apps/pricing-service/src/main.ts'),   env: { PORT: '3012' } },
+  { name: 'customer-bff', args: tsNodeCmd('customer-bff', 'apps/customer-bff/src/main.ts'),         env: { PORT: '4000' } },
+  { name: 'customer-web', cmd: nx, args: ['start', 'customer-web'],                                  env: { PORT: '4200' } },
 ];
 
 const procs = services.map(({ name, cmd, args, env }) => {
-  const proc = spawn(cmd, args, {
+  const proc = spawn(cmd || args[0], cmd ? args : args.slice(1), {
     cwd: root,
-    env: { ...process.env, ...env, TSX_TSCONFIG_PATH, TS_NODE_TRANSPILE_ONLY: '1' },
+    env: { ...process.env, ...env, TS_NODE_TRANSPILE_ONLY: '1', TS_NODE_FAST: '1' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const prefix = `[${name}]`;
-  proc.stdout.on('data', (data) => process.stdout.write(data.toString().split('\n').map((l) => l ? `${prefix} ${l}` : '').join('\n') + '\n'));
-  proc.stderr.on('data', (data) => process.stderr.write(data.toString().split('\n').map((l) => l ? `${prefix} ${l}` : '').join('\n') + '\n'));
+  proc.stdout.on('data', (data) =>
+    process.stdout.write(
+      data
+        .toString()
+        .split('\n')
+        .map((l) => (l ? `${prefix} ${l}` : ''))
+        .join('\n') + '\n',
+    ),
+  );
+  proc.stderr.on('data', (data) =>
+    process.stderr.write(
+      data
+        .toString()
+        .split('\n')
+        .map((l) => (l ? `${prefix} ${l}` : ''))
+        .join('\n') + '\n',
+    ),
+  );
   proc.on('exit', (code) => console.log(`${prefix} exited with code ${code}`));
   return proc;
 });
 
-console.log('\n🚀 BESONC dev mode (tsx, no compile needed)...');
+console.log('\n🚀 BESONC dev mode (ts-node + tsconfig-paths, no compile needed)...');
 console.log('   Customer Web:     http://localhost:4200');
 console.log('   API Gateway:      http://localhost:3000/api/v1');
 console.log('   Auth Service:     http://localhost:3001/auth');

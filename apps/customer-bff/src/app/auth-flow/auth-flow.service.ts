@@ -12,11 +12,12 @@ export class AuthFlowService {
 
   async requestOtp(phone: string, deviceId?: string): Promise<ApiResponse<{ devOtp?: string }>> {
     // BFF adds the device-id header for the Auth service.
-    return this.callAuth<{ devOtp?: string }>('/otp', 'POST', { phone, deviceId });
+    // Auth service has global prefix `/auth`, so the route is `/auth/otp`.
+    return this.callAuth<{ devOtp?: string }>('/auth/otp', 'POST', { phone, deviceId });
   }
 
   async verifyOtp(phone: string, otp: string, deviceId?: string): Promise<ApiResponse<{ token: string; userId: string }>> {
-    return this.callAuth<{ token: string; userId: string }>('/verify', 'POST', { phone, otp, deviceId });
+    return this.callAuth<{ token: string; userId: string }>('/auth/verify', 'POST', { phone, otp, deviceId });
   }
 
   private async callAuth<T>(path: string, method: string, body: unknown): Promise<ApiResponse<T>> {

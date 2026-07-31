@@ -182,7 +182,12 @@ export class OrderService {
     const id = this.nextId(input.service);
     const vendorIds = Array.from(new Set(input.items.map((i) => i.vendorId)));
     const stateMachine = OrderStateMachines[input.service];
-    const estimatedPreparationMinutes = Math.max(...input.items.map((i) => 25));
+    // v1 estimate: each item takes a fixed 25 minutes of prep. We take
+    // the max across all items. If the cart is empty we fall back to
+    // 15 minutes (a sensible default for any vendor).
+    const estimatedPreparationMinutes = input.items.length > 0
+      ? Math.max(...input.items.map(() => 25))
+      : 15;
     const order: Order = {
       id,
       customerId: input.customerId,

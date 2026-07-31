@@ -1,0 +1,18 @@
+{
+  "name": "order-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/order-service/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["dist/apps/order-service"],
+      "options": { "command": "npx tsc -p apps/order-service/tsconfig.json --rootDir ." },
+      "cache": true
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": { "command": "node dist/apps/order-service/apps/order-service/src/main.js" }
+    }
+  }
+}

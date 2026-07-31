@@ -11,15 +11,18 @@
   "scripts": {
     "start": "pnpm run build && node scripts/dev.js",
     "build": "pnpm run build:nest && pnpm run build:web",
-    "build:nest": "tsc -p apps/api-gateway/tsconfig.json --rootDir . && tsc -p apps/auth-service/tsconfig.json --rootDir . && tsc -p apps/user-service/tsconfig.json --rootDir . && tsc -p apps/customer-bff/tsconfig.json --rootDir .",
+    "build:nest": "for app in api-gateway auth-service user-service customer-bff catalogue-service pricing-service order-service payment-service media-service; do npx tsc -p apps/$app/tsconfig.json --rootDir . && echo \"$app OK\"; done",
     "build:web": "nx run-many -t build -p customer-web",
-    "build:libs": "tsc --noEmit -p tsconfig.base.json",
+    "build:libs": "node scripts/setup-dist-libs.js",
     "test": "nx run-many -t test",
     "lint": "nx run-many -t lint",
     "graph": "nx graph",
     "format": "nx format:write",
     "format:check": "nx format:check",
-    "dev": "node scripts/dev.js"
+    "dev": "node scripts/dev.js",
+    "dev:mobile": "cd apps/customer-mobile && expo start",
+    "mobile:android": "cd apps/customer-mobile && expo start --android",
+    "mobile:ios": "cd apps/customer-mobile && expo start --ios"
   },
   "devDependencies": {
     "@nestjs/common": "10",
@@ -50,6 +53,7 @@
     "reflect-metadata": "0.2",
     "rxjs": "7.8",
     "supertest": "7",
+    "tsx": "^4.23.1",
     "typescript": "~5.5.0"
   }
 }

@@ -4,8 +4,21 @@
     "outDir": "../../dist/apps/user-service",
     "rootDir": "../..",
     "module": "commonjs",
-    "types": ["node", "express"]
+    "types": [
+      "node",
+      "express"
+    ],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
   },
-  "include": ["src/**/*.ts", "../../libs/**/*.ts"],
-  "exclude": ["**/*.spec.ts", "**/*.test.ts", "../../libs/**/*.spec.ts", "../../libs/**/*.test.ts"]
+  "include": [
+    "src/**/*.ts",
+    "../../libs/**/*.ts"
+  ],
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "../../libs/**/*.spec.ts",
+    "../../libs/**/*.test.ts"
+  ]
 }

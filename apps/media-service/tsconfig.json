@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "../../dist/apps/media-service",
+    "rootDir": "../..",
+    "module": "commonjs",
+    "types": [
+      "node",
+      "express"
+    ],
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../libs/**/*.ts"
+  ],
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "../../libs/**/*.spec.ts",
+    "../../libs/**/*.test.ts"
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "catalogue-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/catalogue-service/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "outputs": ["dist/apps/catalogue-service"],
+      "options": {
+        "command": "npx tsc -p apps/catalogue-service/tsconfig.json --rootDir ."
+      },
+      "cache": true
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node dist/apps/catalogue-service/apps/catalogue-service/src/main.js"
+      }
+    }
+  }
+}

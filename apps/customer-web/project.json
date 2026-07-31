@@ -19,9 +19,9 @@
       }
     },
     "start": {
-      "executor": "@nx/next:start",
+      "executor": "nx:run-commands",
       "options": {
-        "buildTarget": "customer-web:build"
+        "command": "npx next dev apps/customer-web -p 4200"
       }
     },
     "lint": {

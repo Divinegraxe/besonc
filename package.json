@@ -20,6 +20,9 @@
     "format": "nx format:write",
     "format:check": "nx format:check",
     "dev": "node scripts/dev.js",
+    "dev:api": "INCLUDE_WEB=0 node scripts/dev.js",
+    "dev:web": "nx start customer-web",
+    "dev:stop": "pkill -f 'ts-node.*apps/' 2>/dev/null; pkill -f 'next dev' 2>/dev/null; pkill -f 'nx start' 2>/dev/null; echo 'BESONC dev stopped.'",
     "dev:mobile": "cd apps/customer-mobile && expo start",
     "mobile:android": "cd apps/customer-mobile && expo start --android",
     "mobile:ios": "cd apps/customer-mobile && expo start --ios"

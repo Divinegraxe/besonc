@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
-import { OrderModule } from './order/order.module';
 import { HealthModule } from './health/health.module';
-@Module({ imports: [OrderModule, HealthModule] })
+import { OrderModule } from './order/order.module';
+@Module({
+  // HealthModule first so /orders/health is registered before
+  // OrderController's @Get(':id') route.
+  imports: [HealthModule, OrderModule],
+})
 export class AppModule {}

@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
-import { UserModule } from './user/user.module';
 import { HealthModule } from './health/health.module';
+import { UserModule } from './user/user.module';
 
 @Module({
-  imports: [UserModule, HealthModule],
+  // HealthModule first so /<prefix>/health is registered BEFORE the
+  // feature controller's `@Get(':id')` route. Otherwise NestJS matches
+  // `/users/health` against `:id = 'health'` and returns NOT_FOUND.
+  imports: [HealthModule, UserModule],
 })
 export class AppModule {}

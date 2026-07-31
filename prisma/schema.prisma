@@ -523,3 +523,189 @@ model CodCollection {
   @@index([collectedAt])
   @@map("cod_collection")
 }
+
+// ── Chat (owned by chat-service) ─────────────────────────────────
+
+model ChatThread {
+  id            String   @id @default(cuid())
+  orderId       String   @unique  // one thread per order (v1 simplification)
+  customerId    String
+  vendorId      String?
+  riderId       String?
+  createdAt     DateTime @default(now())
+  lastMessageAt DateTime @default(now())
+
+  messages      ChatMessage[]
+
+  @@index([customerId, lastMessageAt])
+  @@index([vendorId, lastMessageAt])
+  @@index([riderId, lastMessageAt])
+  @@map("chat_thread")
+}
+
+model ChatMessage {
+  id          String   @id @default(cuid())
+  threadId    String
+  thread      ChatThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  senderId    String    // userId, vendorId, or riderId
+  senderType  String    @db.VarChar(16)  // 'customer' | 'vendor' | 'rider' | 'system'
+  body        String    @db.Text
+  attachmentUrl String? @db.VarChar(500)
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([threadId, createdAt])
+  @@map("chat_message")
+}
+
+// ── Search (owned by search-service) ─────────────────────────────
+
+model SearchIndex {
+  id            String   @id @default(cuid())
+  entityType    String   @db.VarChar(16)  // 'vendor' | 'item' | 'category'
+  entityId      String
+  // For Postgres full-text search we use a tsvector column.
+  // The @db.TsVector type is a Prisma 5+ feature; if your version
+  // doesn't support it, use @db.Text and a manually-maintained
+  // tsvector in a trigger. For now we use a simpler text-search-
+  // friendly denormalized field plus ILIKE search.
+  searchText    String   @db.Text
+  // Categorical fields for filtering
+  city          String?  @db.VarChar(8)
+  category      ServiceCode?
+  isActive      Boolean  @default(true)
+  rating        Decimal? @db.Decimal(2, 1)
+  priceRangeMin  Int?
+  priceRangeMax  Int?
+  latitude      Decimal? @db.Decimal(10, 7)
+  longitude     Decimal? @db.Decimal(10, 7)
+  metadata      Json?
+  updatedAt     DateTime @updatedAt
+
+  @@unique([entityType, entityId])
+  @@index([entityType, city, isActive])
+  @@index([entityType, category])
+  @@map("search_index")
+}
+
+// ── Ratings (owned by rating-service) ───────────────────────────
+
+enum RatingTarget {
+  vendor
+  rider
+  item
+  platform
+}
+
+model Rating {
+  id              String        @id @default(cuid())
+  orderId         String
+  raterId         String        // customer, vendor, or rider
+  raterType       String        @db.VarChar(16)
+  targetType      RatingTarget
+  targetId        String        // vendorId, riderId, itemId
+  stars           Int           // 1-5
+  comment         String?       @db.VarChar(1000)
+  tags            String[]      @default([])  // 'fast', 'polite', 'cold_food', etc.
+  isPublic        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+
+  @@unique([orderId, raterId, targetType, targetId])
+  @@index([targetType, targetId, createdAt])
+  @@index([orderId])
+  @@map("rating")
+}
+
+// ── Tip (owned by tip-service) ─────────────────────────────────
+
+enum TipStatus {
+  pending
+  paid
+  refunded
+  failed
+}
+
+model Tip {
+  id              String    @id @default(cuid())
+  orderId         String    @unique
+  customerId      String
+  riderId         String
+  amountPesewas   Int
+  status          TipStatus @default(pending)
+  paystackRef     String?   @db.VarChar(100)
+  customerMessage String?   @db.VarChar(280)
+  createdAt       DateTime  @default(now())
+  paidAt          DateTime?
+
+  @@index([riderId, createdAt])
+  @@index([customerId, createdAt])
+  @@index([status])
+  @@map("tip")
+}
+
+// ── Promo (owned by promo-service) ─────────────────────────────
+
+enum PromoType {
+  percentage      // 10% off
+  fixed_amount    // GHS 5 off
+  free_delivery   // delivery fee = 0
+  vendor_funded   // vendor covers part of the cost
+  referral        // both parties get credit
+}
+
+enum PromoStatus {
+  draft
+  active
+  paused
+  expired
+}
+
+model PromoCode {
+  id                String      @id @default(cuid())
+  code              String      @unique @db.VarChar(32)  // e.g. "WELCOME10", "CAPE20"
+  description       String?     @db.VarChar(200)
+  type              PromoType
+  // Discount config (depends on type)
+  discountPercent   Int?        // for percentage type (0-100)
+  discountPesewas   Int?        // for fixed_amount type
+  minOrderPesewas   Int         @default(0)
+  maxDiscountPesewas Int?       // cap on the discount
+  // Scope
+  vendorId          String?     // null = platform-wide
+  category          ServiceCode? // null = all categories
+  city              String?     @db.VarChar(8)
+  // Usage
+  maxUses           Int?        // null = unlimited
+  maxUsesPerUser    Int         @default(1)
+  currentUses       Int         @default(0)
+  // Schedule
+  startsAt          DateTime    @default(now())
+  expiresAt         DateTime?
+  // Audit
+  createdBy         String      // 'platform' | 'vendor:<id>'
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  status            PromoStatus  @default(active)
+
+  redemptions       PromoRedemption[]
+
+  @@index([code, status])
+  @@index([status, startsAt, expiresAt])
+  @@index([vendorId, status])
+  @@map("promo_code")
+}
+
+model PromoRedemption {
+  id            String   @id @default(cuid())
+  promoId       String
+  promo         PromoCode @relation(fields: [promoId], references: [id])
+  userId        String
+  orderId       String
+  discountAppliedPesewas Int
+  redeemedAt    DateTime @default(now())
+
+  @@index([promoId, redeemedAt])
+  @@index([userId])
+  @@index([orderId])
+  @@map("promo_redemption")
+}

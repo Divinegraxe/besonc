@@ -1,0 +1,10 @@
+{
+  "name": "search-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/search-service/src",
+  "projectType": "application",
+  "targets": {
+    "build": { "executor": "nx:run-commands", "options": { "command": "npx tsc -p apps/search-service/tsconfig.json --rootDir ." } },
+    "serve": { "executor": "nx:run-commands", "options": { "command": "./node_modules/.bin/ts-node --transpile-only -r tsconfig-paths/register -P apps/search-service/tsconfig.json apps/search-service/src/main.ts", "cwd": "." } }
+  }
+}

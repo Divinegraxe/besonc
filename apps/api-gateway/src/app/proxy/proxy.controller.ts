@@ -104,6 +104,11 @@ export class ProxyController {
       pricing: CONFIG.endpoints.pricingService,
       admin: CONFIG.endpoints.adminService,
       cod: CONFIG.endpoints.codService,
+      chat: CONFIG.endpoints.chatService,
+      search: CONFIG.endpoints.searchService,
+      ratings: CONFIG.endpoints.ratingService,
+      tips: CONFIG.endpoints.tipService,
+      promos: CONFIG.endpoints.promoService,
       // BFFs: first segment is "bff" and the second determines which
       // BFF (customer, vendor, rider, admin).
       bff: this.resolveBffUrl(servicePath),

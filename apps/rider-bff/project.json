@@ -1,0 +1,10 @@
+{
+  "name": "rider-bff",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/rider-bff/src",
+  "projectType": "application",
+  "targets": {
+    "build": { "executor": "nx:run-commands", "options": { "command": "npx tsc -p apps/rider-bff/tsconfig.json --rootDir ." } },
+    "serve": { "executor": "nx:run-commands", "options": { "command": "./node_modules/.bin/ts-node --transpile-only -r tsconfig-paths/register -P apps/rider-bff/tsconfig.json apps/rider-bff/src/main.ts", "cwd": "." } }
+  }
+}

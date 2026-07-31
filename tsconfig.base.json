@@ -30,7 +30,8 @@
       "@besonc/shared-payment": ["libs/shared-payment/src/index.ts"],
       "@besonc/shared-notifications": ["libs/shared-notifications/src/index.ts"],
       "@besonc/shared-kyc": ["libs/shared-kyc/src/index.ts"],
-      "@besonc/shared-api-client": ["libs/shared-api-client/src/index.ts"]
+      "@besonc/shared-api-client": ["libs/shared-api-client/src/index.ts"],
+      "@besonc/shared-db": ["libs/shared-db/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

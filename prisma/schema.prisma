@@ -1,0 +1,163 @@
+// BESONC unified Prisma schema.
+//
+// One schema for the whole monorepo, one generated client at
+// /node_modules/@prisma/client. Each NestJS service uses the
+// subset of models it owns.
+//
+// Why one schema instead of one-per-service:
+//  - In a monorepo, services often join across tables (e.g. order
+//    service reads vendor.id from the catalogue's vendor table).
+//  - One client = one consistent type system, easier to evolve.
+//  - Migrations apply atomically across all services.
+//
+// As we add more services (Sprint 5+), append their models here.
+
+generator client {
+  provider = "prisma-client-js"
+  // No custom output: use the default location so the standard
+  // `import { PrismaClient } from '@prisma/client'` works everywhere.
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── Shared enums ─────────────────────────────────────────────────────
+
+enum ServiceCode {
+  FO  // Food
+  GR  // Groceries
+  SH  // Shop
+  MK  // Market
+  PH  // Pharmacy & Health
+  LD  // Laundry
+  PR  // Parcel & Courier
+  ER  // Errands
+  TR  // Transport (Sprint 5+)
+}
+
+enum VendorType {
+  business
+  individual
+}
+
+enum OrderState {
+  placed
+  vendor_accepted
+  preparing
+  ready_for_pickup
+  rider_assigned
+  rider_at_vendor
+  picked_up
+  in_transit
+  arrived
+  delivered
+  vendor_rejected
+  vendor_cancelled
+  customer_cancelled
+  rider_unassigned
+  payment_failed
+  prescription_review
+  prescription_rejected
+  prescription_modified
+  rider_assigned_pickup
+  rider_at_customer_pickup
+  picked_up_from_customer
+  delivered_to_vendor
+  vendor_received
+  processing
+  vendor_done
+  rider_assigned_return
+  rider_at_vendor_return
+  picked_up_return
+  in_transit_return
+  delivered_return
+  customer_cancelled_pickup
+  rider_cancelled
+}
+
+enum PaymentStatus {
+  pending
+  paid
+  failed
+  refunded
+}
+
+enum PaymentMethod {
+  momo
+  card
+  cash
+  wallet
+}
+
+// ── Catalogue (owned by catalogue-service) ──────────────────────────
+
+model Vendor {
+  id                  String     @id  // YDV-YYYY-NNNN
+  name                String     @db.VarChar(120)
+  description         String?
+  logoUrl             String?    @db.VarChar(500)
+  bannerUrl           String?    @db.VarChar(500)
+  type                VendorType
+  city                String     @db.VarChar(8)
+  category            ServiceCode
+  rating              Decimal    @default(0) @db.Decimal(2, 1)
+  reviewCount         Int        @default(0)
+  prepTimeMinutes     Int        @default(20)
+  minimumOrderPesewas Int        @default(0)
+  deliveryFeePesewas  Int        @default(0)
+  address             String     @db.VarChar(300)
+  latitude            Decimal    @db.Decimal(10, 7)
+  longitude           Decimal    @db.Decimal(10, 7)
+  phone               String     @db.VarChar(20)
+  isVerified          Boolean    @default(false)
+  isActive            Boolean    @default(true)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  hours VendorHour[]
+  items Item[]
+
+  @@index([city, category, isActive])
+  @@index([category, isActive])
+  @@index([name])
+  @@map("vendor")
+}
+
+model VendorHour {
+  id        String  @id @default(cuid())
+  vendorId  String
+  vendor    Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  dayOfWeek Int
+  openTime  String  @db.VarChar(5)
+  closeTime String  @db.VarChar(5)
+  isClosed  Boolean @default(false)
+
+  @@unique([vendorId, dayOfWeek])
+  @@index([vendorId])
+  @@map("vendor_hour")
+}
+
+model Item {
+  id                  String   @id  // itm-XXX
+  vendorId            String
+  vendor              Vendor   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  name                String   @db.VarChar(200)
+  description         String?
+  pricePesewas        Int
+  imageUrl            String?  @db.VarChar(500)
+  available           Boolean  @default(true)
+  category            String   @db.VarChar(50)
+  preparationMinutes  Int      @default(15)
+  tags                String[] @default([])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  addons              Json?
+  variants            Json?
+
+  @@index([vendorId, available])
+  @@index([vendorId, category])
+  @@map("item")
+}

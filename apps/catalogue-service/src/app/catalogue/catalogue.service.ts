@@ -14,17 +14,18 @@ export class CatalogueService {
     private readonly items: ItemService,
   ) {}
 
-  listByCategory(category: ServiceCode, onlyOpen = false): Vendor[] {
+  listByCategory(category: ServiceCode, onlyOpen = false): Promise<Vendor[]> {
     return this.vendors.listByCategory(category, onlyOpen);
   }
 
-  getVendorWithMenu(vendorId: string): { vendor: Vendor; items: Item[] } | null {
-    const vendor = this.vendors.getById(vendorId);
+  async getVendorWithMenu(vendorId: string): Promise<{ vendor: Vendor; items: Item[] } | null> {
+    const vendor = await this.vendors.getById(vendorId);
     if (!vendor) return null;
-    return { vendor, items: this.items.listByVendor(vendorId) };
+    const items = await this.items.listByVendor(vendorId);
+    return { vendor, items };
   }
 
-  getItemsByIds(ids: string[]): Item[] {
+  getItemsByIds(ids: string[]): Promise<Item[]> {
     return this.items.listByIds(ids);
   }
 }

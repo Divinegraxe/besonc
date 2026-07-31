@@ -27,7 +27,15 @@
     "dev:mobile:tunnel": "cd apps/customer-mobile && expo start --tunnel",
     "dev:mobile:ip": "echo 'Set EXPO_PUBLIC_API_BASE_URL before running, e.g.:' && echo '  EXPO_PUBLIC_API_BASE_URL=http://192.168.1.42:3000 pnpm run dev:mobile'",
     "mobile:android": "cd apps/customer-mobile && expo start --android",
-    "mobile:ios": "cd apps/customer-mobile && expo start --ios"
+    "mobile:ios": "cd apps/customer-mobile && expo start --ios",
+    "db:up": "docker-compose up -d postgres redis",
+    "db:down": "docker-compose down",
+    "db:down:reset": "docker-compose down -v",
+    "db:logs": "docker-compose logs -f postgres redis",
+    "db:migrate": "for app in catalogue-service order-service payment-service media-service; do echo \"--- $app ---\"; if [ -f apps/$app/prisma/schema.prisma ]; then DATABASE_URL=$DATABASE_URL npx prisma migrate deploy --schema=apps/$app/prisma/schema.prisma; fi; done",
+    "db:generate": "for app in catalogue-service order-service payment-service media-service; do echo \"--- $app ---\"; if [ -f apps/$app/prisma/schema.prisma ]; then DATABASE_URL=$DATABASE_URL npx prisma generate --schema=apps/$app/prisma/schema.prisma; fi; done",
+    "db:studio": "npx prisma studio --schema=apps/catalogue-service/prisma/schema.prisma",
+    "db:seed:catalogue": "DATABASE_URL=$DATABASE_URL npx ts-node --transpile-only -r tsconfig-paths/register -P apps/catalogue-service/tsconfig.json prisma/seed-catalogue.ts"
   },
   "devDependencies": {
     "@nestjs/common": "10",
@@ -44,6 +52,7 @@
     "@nx/node": "19.5.0",
     "@nx/react": "19.5.0",
     "@nx/workspace": "19.5.0",
+    "@prisma/client": "^5.20.0",
     "@types/express": "4",
     "@types/node": "20",
     "@types/react": "18",
@@ -53,6 +62,7 @@
     "class-validator": "0.14",
     "next": "14",
     "nx": "19.5.0",
+    "prisma": "^5.20.0",
     "react": "18",
     "react-dom": "18",
     "reflect-metadata": "0.2",

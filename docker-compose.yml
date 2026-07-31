@@ -1,0 +1,62 @@
+# BESONC local development infrastructure.
+#
+# Brings up Postgres + Redis for the backend services. Mailhog catches
+# outgoing emails (in dev only) so you can see them at http://localhost:8025.
+#
+# Usage:
+#   docker-compose up -d       # start
+#   docker-compose down        # stop (keeps data)
+#   docker-compose down -v     # stop AND wipe all data
+#   docker-compose logs -f      # tail logs
+#
+# All BESONC backend services default to:
+#   DATABASE_URL=postgresql://besonc:besonc_dev_pw@localhost:5432/besonc_dev
+#   REDIS_URL=redis://localhost:6379
+#   SMTP_HOST=localhost  SMTP_PORT=1025  (Mailhog)
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: besonc-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: besonc
+      POSTGRES_PASSWORD: besonc_dev_pw
+      POSTGRES_DB: besonc_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - besonc-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U besonc -d besonc_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: besonc-redis
+    restart: unless-stopped
+    # --save "" disables RDB snapshots. --appendonly no disables AOF.
+    # We don't need persistence for dev; redis is a cache.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  mailhog:
+    # SMTP test server. Captures all outgoing emails; view at
+    # http://localhost:8025. No real emails are sent.
+    image: mailhog/mailhog:latest
+    container_name: besonc-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+
+volumes:
+  besonc-pgdata:

@@ -1,29 +1,20 @@
-import type { ExpoConfig } from 'expo/config';
+import type { ExpoConfig, ConfigContext } from 'expo/config';
 
-const config: ExpoConfig = {
-  name: 'Besonc Customer',
-  slug: 'besonc-customer',
-  version: '0.1.0',
-  orientation: 'portrait',
-  scheme: 'besonc',
-  userInterfaceStyle: 'light',
-  splash: {
-    backgroundColor: '#00A86B',
-    resizeMode: 'contain',
-  },
-  ios: {
-    supportsTablet: true,
-    bundleIdentifier: 'gh.besonc.customer',
-  },
-  android: {
-    package: 'gh.besonc.customer',
-    adaptiveIcon: {
-      backgroundColor: '#00A86B',
-    },
-  },
+/**
+ * Expo dynamic config. `app.json` is the static source of truth; this file
+ * is invoked AFTER Expo reads app.json and passed the normalized config as
+ * `config`. We use it to:
+ *   - override `apiBaseUrl` from the BESONC_API_BASE_URL env var (if set)
+ *   - add any dev-time overrides
+ *
+ * If app.json and this file disagree, this file wins.
+ */
+const config = ({ config }: ConfigContext): ExpoConfig => ({
+  ...config,
   extra: {
-    apiBaseUrl: 'http://localhost:3000',
+    ...(config.extra ?? {}),
+    apiBaseUrl: process.env.BESONC_API_BASE_URL ?? config.extra?.apiBaseUrl ?? 'http://localhost:3000',
   },
-};
+});
 
 export default config;

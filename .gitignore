@@ -42,3 +42,14 @@ Thumbs.db
 
 .nx/cache
 .nx/workspace-data
+
+# Expo
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+

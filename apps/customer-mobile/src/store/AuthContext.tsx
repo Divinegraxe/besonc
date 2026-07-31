@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { setAuthToken } from '../api/client';
+import { setAuthToken, loadApiBaseUrlOverride } from '../api/client';
 import { authApi } from '../api';
 
 const TOKEN_KEY = '@besonc/token';
@@ -30,6 +30,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
+        // Load any saved API base URL override (so users can switch backends
+        // without rebuilding the app), then restore the session.
+        await loadApiBaseUrlOverride();
         const t = await AsyncStorage.getItem(TOKEN_KEY);
         const u = await AsyncStorage.getItem(USER_KEY);
         if (t && u) {

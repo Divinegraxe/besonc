@@ -23,7 +23,9 @@
     "dev:api": "INCLUDE_WEB=0 node scripts/dev.js",
     "dev:web": "nx start customer-web",
     "dev:stop": "pkill -f 'ts-node.*apps/' 2>/dev/null; pkill -f 'next dev' 2>/dev/null; pkill -f 'nx start' 2>/dev/null; echo 'BESONC dev stopped.'",
-    "dev:mobile": "cd apps/customer-mobile && expo start",
+    "dev:mobile": "cd apps/customer-mobile && expo start --lan",
+    "dev:mobile:tunnel": "cd apps/customer-mobile && expo start --tunnel",
+    "dev:mobile:ip": "echo 'Set EXPO_PUBLIC_API_BASE_URL before running, e.g.:' && echo '  EXPO_PUBLIC_API_BASE_URL=http://192.168.1.42:3000 pnpm run dev:mobile'",
     "mobile:android": "cd apps/customer-mobile && expo start --android",
     "mobile:ios": "cd apps/customer-mobile && expo start --ios"
   },

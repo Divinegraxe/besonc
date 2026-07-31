@@ -1,7 +1,7 @@
 {
   "name": "@besonc/customer-mobile",
   "version": "0.1.0",
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "index.js",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
+    "@expo/metro-config": "^0.18.11",
     "@types/react": "~18.2.79",
     "typescript": "~5.3.3"
   },

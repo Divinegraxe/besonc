@@ -62,6 +62,13 @@ cd ../..
 This creates two `node_modules/` folders. The mobile one's is in
 `apps/customer-mobile/node_modules/`.
 
+> **Note:** `apps/customer-mobile/.npmrc` contains `node-linker=hoisted`,
+> which makes pnpm install that workspace with a **flat** `node_modules/`
+> (npm/yarn style) instead of pnpm's default symlinked layout. React
+> Native + Metro + Expo all assume a flat `node_modules` and break
+> with pnpm's default. If you ever delete `.npmrc` by accident,
+> `cd apps/customer-mobile && rm -rf node_modules pnpm-lock.yaml && pnpm install`.
+
 ---
 
 ## Step 3 — (Optional) set up the `.env`

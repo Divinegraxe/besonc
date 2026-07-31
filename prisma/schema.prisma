@@ -386,3 +386,140 @@ model MediaAsset {
   @@index([context])
   @@map("media_asset")
 }
+
+// ── Dispatch (owned by dispatch-service) ──────────────────────────
+
+enum RiderStatus {
+  offline
+  available
+  on_delivery
+  on_break
+}
+
+enum VehicleType {
+  bicycle
+  motorcycle
+  car
+  walking
+}
+
+model Rider {
+  id            String        @id  // YDR-YYYY-NNNN
+  name          String        @db.VarChar(120)
+  phone         String        @unique @db.VarChar(20)
+  email         String?       @db.VarChar(120)
+  passwordHash  String?       // null until rider self-registers
+  vehicleType   VehicleType   @default(motorcycle)
+  vehiclePlate  String?       @db.VarChar(20)
+  city          String        @db.VarChar(8)
+  status        RiderStatus   @default(offline)
+  isVerified    Boolean       @default(false)  // KYC verified
+  isActive      Boolean       @default(true)
+  rating        Decimal       @default(0) @db.Decimal(2, 1)
+  totalDeliveries Int         @default(0)
+  lastSeenAt    DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // KYC: Smile ID fields
+  smileIdId     String?       @db.VarChar(80)
+  smileIdStatus String?       @db.VarChar(20)
+  ghanaCardNumber String?     @db.VarChar(40)
+
+  // Paystack transfer recipient (mobile money)
+  paystackRecipientCode String? @db.VarChar(100)
+  mobileMoneyPhone  String?     @db.VarChar(20)
+  mobileMoneyProvider String?   @db.VarChar(16)
+
+  @@index([city, status, isActive])
+  @@index([status])
+  @@map("rider")
+}
+
+// ── Tracking (owned by tracking-service) ──────────────────────────
+
+model RiderLocationPing {
+  id          String   @id @default(cuid())
+  riderId     String
+  latitude    Decimal  @db.Decimal(10, 7)
+  longitude   Decimal  @db.Decimal(10, 7)
+  heading     Decimal? @db.Decimal(5, 2)   // degrees 0-360
+  speedKmh    Decimal? @db.Decimal(5, 2)
+  accuracyM   Decimal? @db.Decimal(6, 2)
+  batteryPct  Int?     // 0-100
+  orderId     String?  // if the ping is while delivering a specific order
+  occurredAt  DateTime @default(now())
+
+  @@index([riderId, occurredAt])
+  @@index([orderId, occurredAt])
+  @@map("rider_location_ping")
+}
+
+// ── Notification (owned by notification-service) ──────────────────
+
+enum NotificationChannel {
+  sms
+  email
+  push
+  in_app
+}
+
+enum NotificationStatus {
+  queued
+  sent
+  delivered
+  failed
+  read
+}
+
+model NotificationLog {
+  id            String              @id @default(cuid())
+  channel       NotificationChannel
+  status        NotificationStatus  @default(queued)
+  recipientUserId String?
+  to            String              @db.VarChar(200)  // phone, email, or device token
+  template      String              @db.VarChar(80)   // e.g. 'order_placed', 'rider_arrived'
+  subject       String?             @db.VarChar(200)
+  body          String              @db.Text
+  data          Json?               // template variables
+  relatedOrderId String?
+  providerMsgId String?             @db.VarChar(100)  // Hubtel / FCM / Mailhog ID
+  failureReason String?             @db.VarChar(500)
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  createdAt     DateTime            @default(now())
+
+  @@index([recipientUserId, createdAt])
+  @@index([relatedOrderId])
+  @@index([status, createdAt])
+  @@map("notification_log")
+}
+
+// ── COD (owned by cod-service) ───────────────────────────────────
+
+enum CodStatus {
+  collected    // rider handed the cash to us
+  deposited    // we deposited the cash to the bank
+  reconciled   // finance team confirmed it matches the day's expected
+  disputed     // mismatch flagged
+}
+
+model CodCollection {
+  id              String    @id @default(cuid())
+  orderId         String    @unique
+  riderId         String
+  customerId      String
+  amountPesewas   Int
+  status          CodStatus @default(collected)
+  collectedAt     DateTime  @default(now())
+  depositedAt     DateTime?
+  reconciledAt    DateTime?
+  notes           String?   @db.VarChar(300)
+  variancePesewas Int?      // how much was actually collected vs order's grandTotal (in case of partial / short)
+
+  @@index([riderId, collectedAt])
+  @@index([status, collectedAt])
+  @@index([collectedAt])
+  @@map("cod_collection")
+}

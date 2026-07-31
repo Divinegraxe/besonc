@@ -23,6 +23,10 @@ export interface BesoncServiceEndpoints {
   bffVendor: string;
   bffRider: string;
   bffAdmin: string;
+  codService: string;
+  tipService: string;
+  promoService: string;
+  ratingService: string;
 }
 
 export const DEV_ENDPOINTS: BesoncServiceEndpoints = {
@@ -44,6 +48,10 @@ export const DEV_ENDPOINTS: BesoncServiceEndpoints = {
   bffVendor: 'http://localhost:4001',
   bffRider: 'http://localhost:4002',
   bffAdmin: 'http://localhost:4003',
+  codService: 'http://localhost:3018',
+  tipService: 'http://localhost:3016',
+  promoService: 'http://localhost:3017',
+  ratingService: 'http://localhost:3015',
 };
 
 export interface BesoncConfig {

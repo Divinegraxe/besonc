@@ -1,0 +1,10 @@
+{
+  "name": "notification-service",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/notification-service/src",
+  "projectType": "application",
+  "targets": {
+    "build": { "executor": "nx:run-commands", "options": { "command": "npx tsc -p apps/notification-service/tsconfig.json --rootDir ." } },
+    "serve": { "executor": "nx:run-commands", "options": { "command": "./node_modules/.bin/ts-node --transpile-only -r tsconfig-paths/register -P apps/notification-service/tsconfig.json apps/notification-service/src/main.ts", "cwd": "." } }
+  }
+}

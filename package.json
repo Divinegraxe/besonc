@@ -35,7 +35,8 @@
     "db:migrate": "for app in catalogue-service order-service payment-service media-service; do echo \"--- $app ---\"; if [ -f apps/$app/prisma/schema.prisma ]; then DATABASE_URL=$DATABASE_URL npx prisma migrate deploy --schema=apps/$app/prisma/schema.prisma; fi; done",
     "db:generate": "for app in catalogue-service order-service payment-service media-service; do echo \"--- $app ---\"; if [ -f apps/$app/prisma/schema.prisma ]; then DATABASE_URL=$DATABASE_URL npx prisma generate --schema=apps/$app/prisma/schema.prisma; fi; done",
     "db:studio": "npx prisma studio --schema=apps/catalogue-service/prisma/schema.prisma",
-    "db:seed:catalogue": "DATABASE_URL=$DATABASE_URL npx ts-node --transpile-only -r tsconfig-paths/register -P apps/catalogue-service/tsconfig.json prisma/seed-catalogue.ts"
+    "db:seed:catalogue": "DATABASE_URL=$DATABASE_URL npx ts-node --transpile-only -r tsconfig-paths/register -P apps/catalogue-service/tsconfig.json prisma/seed-catalogue.ts",
+    "db:seed:dispatch": "DATABASE_URL=$DATABASE_URL npx ts-node --transpile-only -r tsconfig-paths/register -P apps/catalogue-service/tsconfig.json prisma/seed-dispatch.ts"
   },
   "devDependencies": {
     "@nestjs/common": "10",
